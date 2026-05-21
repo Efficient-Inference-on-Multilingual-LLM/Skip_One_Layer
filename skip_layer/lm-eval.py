@@ -5,14 +5,22 @@ from pathlib import Path
 
 import pandas as pd
 import torch
+from huggingface_hub import login
+import os
+
+from dotenv import load_dotenv
+load_dotenv()
+
+login(token=os.getenv("HF_TOKEN"))
 
 MODEL_NAME = "google/gemma-3-1b-it"
-BACKEND = "vllm"  # "hf" or "vllm"
+BACKEND = "hf"  # "hf" or "vllm"
+GPU_MEMORY_UTILIZATION = 0.9  # vLLM only
 DEVICE = "cuda:0"
-BATCH_SIZE = "8"
+BATCH_SIZE = "auto"
 NUM_LAYERS = 26
 
-for TASKS in ["global_mmlu_full_id_humanities_tasks", "global_mmlu_full_ko_humanities_tasks", "global_mmlu_full_ja_humanities_tasks"]:
+for TASKS in ["global_mmlu_full_id_humanities_tasks"]:
     config_dir = Path(f"eval-config/{MODEL_NAME}")
     result_dir = Path(f"eval-results/{MODEL_NAME}/{TASKS}")
 
@@ -87,7 +95,7 @@ for TASKS in ["global_mmlu_full_id_humanities_tasks", "global_mmlu_full_ko_human
 
     run_lm_eval(
         model_name=BACKEND,
-        model_args=f"pretrained={MODEL_NAME}" + (",enforce_eager=True" if BACKEND == "vllm" else ""),
+        model_args=f"pretrained={MODEL_NAME}" + (f",enforce_eager=True,gpu_memory_utilization={GPU_MEMORY_UTILIZATION}" if BACKEND == "vllm" else ""),
         output_path=base_output_dir,
     )
 
@@ -98,8 +106,8 @@ for TASKS in ["global_mmlu_full_id_humanities_tasks", "global_mmlu_full_ko_human
         result_dir / "base.csv",
     )
 
-    # delete json directory afterward
-    shutil.rmtree(base_output_dir)
+    # # delete json directory afterward
+    # shutil.rmtree(base_output_dir)
 
     # =====================================================
     # Skip layers
@@ -125,6 +133,7 @@ for TASKS in ["global_mmlu_full_id_humanities_tasks", "global_mmlu_full_ko_human
             model_args=(
                 f"pretrained={MODEL_NAME},"
                 f"steer_path={config_path}"
+                + (f",gpu_memory_utilization={GPU_MEMORY_UTILIZATION}" if BACKEND == "vllm" else "")
             ),
             output_path=output_dir,
         )
@@ -135,8 +144,9 @@ for TASKS in ["global_mmlu_full_id_humanities_tasks", "global_mmlu_full_ko_human
             result_json,
             result_dir / f"skip_layer_{i}.csv",
         )
+        break  # only do the first layer for a quick test run
 
-        # remove json files afterward
-        shutil.rmtree(output_dir)
+        # # remove json files afterward
+        # shutil.rmtree(output_dir)
 
     print("Done.")
