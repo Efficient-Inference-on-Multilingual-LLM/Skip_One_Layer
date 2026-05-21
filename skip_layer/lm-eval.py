@@ -7,6 +7,7 @@ import pandas as pd
 import torch
 
 MODEL_NAME = "google/gemma-3-1b-it"
+BACKEND = "vllm"  # "hf" or "vllm"
 DEVICE = "cuda:0"
 BATCH_SIZE = "8"
 NUM_LAYERS = 26
@@ -28,13 +29,15 @@ for TASKS in ["global_mmlu_full_id_humanities_tasks", "global_mmlu_full_ko_human
             model_args,
             "--tasks",
             TASKS,
-            "--device",
-            DEVICE,
             "--batch_size",
             BATCH_SIZE,
             "--output_path",
             str(output_path),
+            "--include_path",
+            str(Path(__file__).parent),
         ]
+        if BACKEND == "hf":
+            cmd += ["--device", DEVICE]
 
         print("Running:", " ".join(cmd))
 
@@ -83,8 +86,8 @@ for TASKS in ["global_mmlu_full_id_humanities_tasks", "global_mmlu_full_ko_human
     base_output_dir = result_dir / "base"
 
     run_lm_eval(
-        model_name="hf",
-        model_args=f"pretrained={MODEL_NAME}",
+        model_name=BACKEND,
+        model_args=f"pretrained={MODEL_NAME}" + (",enforce_eager=True" if BACKEND == "vllm" else ""),
         output_path=base_output_dir,
     )
 
@@ -118,7 +121,7 @@ for TASKS in ["global_mmlu_full_id_humanities_tasks", "global_mmlu_full_ko_human
         output_dir = result_dir / f"skip_layer_{i}"
 
         run_lm_eval(
-            model_name="steered",
+            model_name="vllm_steered" if BACKEND == "vllm" else "steered",
             model_args=(
                 f"pretrained={MODEL_NAME},"
                 f"steer_path={config_path}"
