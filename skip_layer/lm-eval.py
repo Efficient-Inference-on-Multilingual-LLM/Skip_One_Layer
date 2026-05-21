@@ -14,13 +14,15 @@ load_dotenv()
 login(token=os.getenv("HF_TOKEN"))
 
 MODEL_NAME = "google/gemma-3-1b-it"
-BACKEND = "hf"  # "hf" or "vllm"
+BACKEND = "vllm"  # "hf" or "vllm"
 GPU_MEMORY_UTILIZATION = 0.9  # vLLM only
 DEVICE = "cuda:0"
 BATCH_SIZE = "auto"
-NUM_LAYERS = 26
 
-for TASKS in ["global_mmlu_full_id_humanities_tasks"]:
+from transformers import AutoConfig as _AutoConfig
+NUM_LAYERS = _AutoConfig.from_pretrained(MODEL_NAME).num_hidden_layers
+
+for TASKS in ["bbh"]:
     config_dir = Path(f"eval-config/{MODEL_NAME}")
     result_dir = Path(f"eval-results/{MODEL_NAME}/{TASKS}")
 
@@ -49,7 +51,12 @@ for TASKS in ["global_mmlu_full_id_humanities_tasks"]:
 
         print("Running:", " ".join(cmd))
 
-        subprocess.run(cmd, check=True)
+        result = subprocess.run(cmd)
+        # vLLM's background engine can crash with SIGABRT (-6) during cleanup
+        # even after results are successfully written.  Treat that as success;
+        # find_results_json will raise if the output is actually missing.
+        if result.returncode not in (0, -6):
+            raise subprocess.CalledProcessError(result.returncode, result.args)
 
 
     def find_results_json(output_dir):
@@ -144,7 +151,7 @@ for TASKS in ["global_mmlu_full_id_humanities_tasks"]:
             result_json,
             result_dir / f"skip_layer_{i}.csv",
         )
-        break  # only do the first layer for a quick test run
+        # break  # only do the first layer for a quick test run
 
         # # remove json files afterward
         # shutil.rmtree(output_dir)
