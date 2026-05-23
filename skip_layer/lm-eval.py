@@ -20,7 +20,7 @@ login(token=os.getenv("HF_TOKEN"))
 os.environ["HF_ALLOW_CODE_EVAL"] = "1" # needed for humaneval tasks
 
 BACKEND = "vllm"  # "hf" or "vllm"
-GPU_MEMORY_UTILIZATION = 0.8  # vLLM only
+GPU_MEMORY_UTILIZATION = 0.9  # vLLM only
 DEVICE = "cuda:0"
 BATCH_SIZE = "auto"
 
@@ -50,8 +50,9 @@ TASK_LIST = [
 ]
 MODEL_NAMES = [
     # "google/gemma-3-1b-it",
-    "Qwen/Qwen3-1.7B",
-    "Qwen/Qwen3-8B",
+    # "Qwen/Qwen3-1.7B",
+    "Qwen/Qwen3-4B",
+    # "Qwen/Qwen3-8B",
 ]
 
 ERROR_LOG_PATH = Path("error_log.txt")
